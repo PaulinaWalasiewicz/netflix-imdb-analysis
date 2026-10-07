@@ -79,3 +79,45 @@ from netflix_raw;
 */
 
 
+--How many Netflix movies are shorter than 40 minutes?
+select count(*) as short_movies_count
+from netflix_raw
+where type = 'Movie' and cast(duration as integer) < 40;
+--170
+
+--What are the titles, durations, and genres of Netflix movies that are shorter than 40 minutes?
+select title,duration, listed_in from netflix_raw 
+where type = 'Movie' and cast(duration as integer) < 40
+order by cast(duration as integer) asc;
+-- Mix of short films, kids' holiday specials and behind-the-scenes content
+
+--What are the titles, durations, and genres of Netflix movies that have a null duration?
+select * from netflix_raw 
+where type = 'Movie' and cast(duration as integer) is null;
+-- 3 Louis C.K. stand-ups: duration was shifted into the rating column
+
+--What are the unique values in the rating column of the Netflix table?
+select rating, count(*) as rating_type_count 
+from netflix_raw 
+GROUP BY rating 
+ORDER BY rating_type_count DESC;
+
+/*
+Findings - rating column:
+- Three rows have the duration mistakenly entered in the rating column (74 min, 84 min, and 66 min). These values should be moved to the duration column, and the rating should be set to NULL.
+- There are currently 4 NULL values in the rating column. After fixing the three shifted values, this will increase to 7 NULLs.
+- NR (80 entries) and UR (3 entries) represent the same category, so they should be combined into a single Not Rated category.
+- TV-Y7-FV (6 entries) is a variant of TV-Y7, so it should be merged with TV-Y7
+
+
+DECISION: Which IMDb title types to use for matching with Netflix
+
+Netflix 'Movie' - movie, tvMovie, tvSpecial, short, tvShort, video
+
+Netflix 'TV Show' → tvSeries, tvMiniSeries
+
+Excluded: tvEpisode, tvPilot, videoGame
+
+-tvEpisode: represents individual episodes, not full shows; 
+- tvPilot, videoGame: not part of the Netflix catalog
+  */
