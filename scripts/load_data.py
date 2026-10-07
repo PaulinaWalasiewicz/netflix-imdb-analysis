@@ -21,13 +21,12 @@ cols = ["tconst", "titleType", "primaryTitle", "originalTitle", "isAdult", "star
 chunks = pd.read_csv(DATA / "title.basics.tsv.gz", sep="\t", na_values="\\N", usecols=cols, dtype=str, quoting=csv.QUOTE_NONE, chunksize=500_000)
 
 for i,chunk in enumerate(chunks):
-    chunk = chunk[chunk["titleType"].isin(["movie", "tvSeries", "tvMiniSeries"])]
-    chunk.to_sql("imdb_titles", conn, if_exists="replace" if i == 0 else "append", index=False)
+    chunk.to_sql("imdb_titles_raw", conn, if_exists="replace" if i == 0 else "append", index=False)
 
 # Load IMDb ratings data
 print("Loading IMDb ratings data...")
-ratings = pd.read_csv(DATA / "title.ratings.tsv.gz", sep="\t", na_values="\\N", dtype=str, quoting=csv.QUOTE_NONE)
-ratings.to_sql("imdb_ratings", conn, if_exists="replace", index=False)
+ratings = pd.read_csv(DATA / "title.ratings.tsv.gz", sep="\t", na_values="\\N", quoting=csv.QUOTE_NONE)
+ratings.to_sql("imdb_ratings_raw", conn, if_exists="replace", index=False)
 
 conn.close()
 print(f"Done! Database saved to {DB_PATH}")
