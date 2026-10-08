@@ -107,19 +107,19 @@ order by type;
 "TV Show",2676,2033,76
 */
 
---So there is mutch more tv shows being matched when we allow for the release year to be greater 
+--So there is much more tv shows being matched when we allow for the release year to be greater 
 --than or equal to the start year. This makes sense because many tv shows have multiple seasons and 
 --may have started before they were added to Netflix. And netflix does not always add first 
---seazon date as it should be. 
+--season date as it should be. 
 
---But we also got more mtched movies. This is because some movies have been re-released in later
+--But we also got more matched movies. This is because some movies have been re-released in later
 -- years, and Netflix may have added the re-release date instead of the original release date.
 
---So we should use diffrent matching criteria for movies and tv shows. 
+--So we should use different matching criteria for movies and tv shows. 
 --For movies we should use exact match on title + year + type, and for tv shows we should use 
 --exact match on title + type, and release year >= start year.
 
---But lets first chek
+--But lets first check
 
 select n.title, n.release_year, i.primaryTitle, i.startYear, i.titleType, i.numVotes
 from netflix_raw n
@@ -163,7 +163,7 @@ where n.type = 'Movie';
 6131,4627,4806,4833,4836
 */
 
---for 2 yesrs
+--for 2 years
 select n.title, n.release_year,n.duration, i.primaryTitle, i.startYear, i.titleType, i.numVotes
 from netflix_raw n
 join imdb_titles i
@@ -199,7 +199,7 @@ where n.type = 'Movie'
         and i2.netflix_type = n.type
   )
 order by n.title;
--- Only return 3 moviestwo has no ratings and one has only 18 so we will use 2 years tolerance for movies.
+-- Only return 3 movies of witch two has no ratings and one has only 18 so we will use 2 years tolerance for movies.
 
 
 --Lets try to match the Netflix titles with the IMDb titles using the new matching criteria.
@@ -257,3 +257,147 @@ left join imdb_titles i
 where i.tconst is null
 order by random()
 limit 50;
+
+/* After observation of some random titles i come to a conslusion that
+i will standarize letters to all lower, replace & with word and,
+also all spacial characters will be removed to match rest of titles
+*/
+
+select title, replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(lower(title), '&', 'and'),
+    ':', ''),
+    '?', ''),
+    '!', ''),
+    ',', ''),
+    '.', ''),
+    '-', ''),
+    '’', ''),
+    '''', ''),
+    '…', ' '),
+    '  ', ' ') as title_norm
+from netflix_raw
+where title in ('DEATH NOTE', 'Ratchet and Clank', 'Gatao - The Last Stray',
+                'Jen Kirkman: Just Keep Livin’?', 'Miranda Sings Live…Your Welcome');
+
+--Add normalised title column to IMdb titles table
+
+alter table imdb_titles add column primary_title_norm text;
+alter table imdb_titles add column original_title_norm text;
+
+update imdb_titles
+set primary_title_norm = replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(lower(primaryTitle), '&', 'and'),
+    ':', ''),
+    '?', ''),
+    '!', ''),
+    ',', ''),
+    '.', ''),
+    '-', ''),
+    '’', ''),
+    '''', ''),
+    '…', ' '),
+    '  ', ' '),
+original_title_norm = replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(lower(originalTitle), '&', 'and'),
+    ':', ''),
+    '?', ''),
+    '!', ''),
+    ',', ''),
+    '.', ''),
+    '-', ''),
+    '’', ''),
+    '''', ''),
+    '…', ' '),
+    '  ', ' ');
+
+    --Let's check the result
+
+select primaryTitle, primary_title_norm, originalTitle, original_title_norm
+from imdb_titles
+where primaryTitle in ('Death Note', 'Ratchet & Clank', 'Zathura: A Space Adventure');
+
+
+--For faster matching lets adds indexes
+create index idx_imdb_primary_norm on imdb_titles(primary_title_norm);
+create index idx_imdb_original_norm on imdb_titles(original_title_norm);
+
+--Normalization of netflix table
+with netflix_norm as (
+    select *,replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(
+    replace(lower(title), '&', 'and'),
+    ':', ''),
+    '?', ''),
+    '!', ''),
+    ',', ''),
+    '.', ''),
+    '-', ''),
+    '’', ''),
+    '''', ''),
+    '…', ' '),
+    '  ', ' ') as title_norm
+    from netflix_raw
+),
+match_counts as (
+    select
+        n.type,
+        count(distinct n.show_id) as total_titles,
+        count(distinct case when i.tconst is not null then n.show_id end) as matched_titles
+    from netflix_norm n
+    left join imdb_titles i
+        on (n.title_norm = i.primary_title_norm or n.title_norm = i.original_title_norm)
+        and n.type = i.netflix_type
+        and((n.type = 'Movie' and n.release_year - i.startYear between 0 and 2)
+            or
+            (n.type = 'TV Show' and i.startYear <= n.release_year)
+        )
+        and(
+            i.titleType not in ('short','tvShort')
+            or cast(n.duration as integer) <= 40
+        )
+    group by n.type
+)
+select
+    type,
+    total_titles,
+    matched_titles,
+    round(100.0 * matched_titles / total_titles, 1) as match_pct
+from match_counts
+order by type;
+
+--Normalized titles + originalTitle: matching rate increased from 77.4% to 85.6%
