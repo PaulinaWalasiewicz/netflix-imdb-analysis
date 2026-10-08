@@ -161,3 +161,58 @@ from netflix_clean;
 */
 -- All 8,807 Netflix titles are kept. 7,483 have an IMDb rating
 -- (7,538 matched, 55 of them have no rating in IMDb).
+
+
+-- =====================================================
+-- 5. Genres and countries
+-- =====================================================
+
+-- One row per title and genre
+drop table if exists netflix_genres;
+create table netflix_genres as
+select
+    n.show_id,
+    trim(g.value) as genre
+from netflix_clean n,
+     json_each('["' || replace(n.listed_in, ',', '","') || '"]') g;
+
+select genre, count(*) as title_count
+from netflix_genres
+group by genre
+order by title_count desc;
+
+select count(distinct show_id) as titles_with_genre, count(distinct genre) as genre_count
+from netflix_genres;
+/*
+"titles_with_genre","genre_count"
+8807,42
+*/
+
+-- All 8,807 titles have at least one genre. 42 genres in total.
+
+-- One row per title and country
+drop table if exists netflix_countries;
+create table netflix_countries as
+select
+    n.show_id,
+    trim(c.value) as country
+from netflix_clean n,
+     json_each('["' || replace(n.country, ',', '","') || '"]') c
+where trim(c.value) <> '';
+
+select country, count(*) as country_count
+from netflix_countries
+group by country
+order by country_count desc;
+
+select count(distinct show_id) as titles_with_country, count(distinct country) as country_count
+from netflix_countries;
+/*
+"titles_with_country","country_count"
+7976,122
+*/
+
+-- Empty values (from trailing commas like "Cambodia,") are removed with where trim(c.value) <> ''.
+-- Check: 7,976 titles have a country (831 have no country), 122 countries in total.
+-- Historical countries are kept as they are: West Germany (5), East Germany (1), Soviet Union (3).
+-- Poland: 41 titles.
