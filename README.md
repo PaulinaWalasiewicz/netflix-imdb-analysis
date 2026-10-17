@@ -1,4 +1,6 @@
-# Netflix × IMDb: What Makes Netflix Content Successful?
+**English** | [Polski](README.pl.md)
+
+# Netflix × IMDb: what makes Netflix content successful?
 
 In this project I combined the Netflix catalog with IMDb ratings to find out
 what Netflix adds to its library and how these titles are rated.
@@ -86,3 +88,7 @@ Korean dramas are usually planned as one season, so Korea has the most one-seaso
 5. Open `notebooks/analysis.ipynb` for the charts
 
 IMDb data is used for non-commercial purposes, according to IMDb's terms.
+
+## Tools
+
+SQL (SQLite), Python (pandas, matplotlib), Jupyter Notebook
